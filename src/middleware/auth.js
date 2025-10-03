@@ -19,12 +19,16 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'Usuário não encontrado' });
     }
 
-    // Adicionar informações do usuário à requisição
+    // Adicionar informações do usuário à requisição.  Incluímos a flag
+    // isAdmin para que os controladores possam verificar permissões de
+    // administrador quando necessário (por exemplo, para criar planos no
+    // Mercado Pago).  Manter userId aqui para consistência no resto do app.
     req.user = {
-      userId: user.id, // Manter userId aqui para consistência no resto do app
+      userId: user.id,
       email: user.email,
       name: user.name,
-      businessName: user.businessName
+      businessName: user.businessName,
+      isAdmin: Boolean(user.isAdmin),
     };
 
     next();

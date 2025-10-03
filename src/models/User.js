@@ -48,6 +48,20 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: true,
   }
+  ,
+  /**
+   * Flag to indicate if the user has administrative privileges.  Only
+   * administrators are allowed to call endpoints that manage Mercado Pago
+   * plans.  Regular users should not be able to create or modify plans via
+   * the API.  By default this flag is false for all users.  Set it to true
+   * for at least one user in your seed or through a manual database update
+   * to enable plan management.
+   */
+  isAdmin: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+  }
 });
 
 // CORREÇÃO: Usamos 'beforeSave' para que a senha seja criptografada

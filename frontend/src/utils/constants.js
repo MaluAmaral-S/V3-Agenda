@@ -24,10 +24,16 @@ export const API_ROUTES = {
   },
   SUBSCRIPTIONS: {
     PLANS: '/plans',
-    CREATE: '/subscriptions',
-    ME: '/subscriptions/me'
+    CREATE: '/mercadopago/subscriptions',
+    ME: '/subscriptions/me',
+    CANCEL_RENEWAL: '/assinaturas/cancelar-renovacao',
+    UPDATE_PAYMENT: '/assinaturas/atualizar-pagamento'
   }
 };
+
+export const MERCADO_PAGO_PUBLIC_KEY = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY || '';
+export const MERCADO_PAGO_MODE = (import.meta.env.VITE_MERCADO_PAGO_MODE || 'production').toLowerCase();
+export const IS_MERCADO_PAGO_SANDBOX = MERCADO_PAGO_MODE !== 'production';
 
 // Cores do tema AgendaPro
 export const COLORS = {

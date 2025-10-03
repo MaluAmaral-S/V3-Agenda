@@ -26,6 +26,17 @@ const Plan = sequelize.define('Plan', {
     allowNull: false,
     defaultValue: true,
   },
+  /**
+   * Identifier of the corresponding plan on Mercado Pago.  When an
+   * administrator creates a plan using the Mercado Pago API we store the
+   * returned id here so that subscriptions can reference it.  This field
+   * remains null for plans that have not been synchronized with Mercado Pago.
+   */
+  mpPlanId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true,
+  },
 }, {
   indexes: [
     { unique: true, fields: ['key'] },

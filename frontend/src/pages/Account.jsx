@@ -35,16 +35,16 @@ const Account = () => {
     }
   }, [user]);
 
-  const handleProfileChange = (e) => {
-    setProfileData({ ...profileData, [e.target.id]: e.target.value });
+  const handleProfileChange = (event) => {
+    setProfileData({ ...profileData, [event.target.id]: event.target.value });
   };
 
-  const handlePasswordChange = (e) => {
-    setPasswordData({ ...passwordData, [e.target.id]: e.target.value });
+  const handlePasswordChange = (event) => {
+    setPasswordData({ ...passwordData, [event.target.id]: event.target.value });
   };
 
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
+  const handleProfileSubmit = async (event) => {
+    event.preventDefault();
     setProfileLoading(true);
 
     try {
@@ -59,8 +59,8 @@ const Account = () => {
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
     setPasswordLoading(true);
 
     if (passwordData.password.length < 6) {
@@ -91,12 +91,8 @@ const Account = () => {
     <div className="px-4 sm:px-6 lg:px-8 space-y-8">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            Informações do Perfil
-          </CardTitle>
-          <CardDescription>
-            Atualize os dados da sua empresa e contato.
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold text-gray-800">Informações do Perfil</CardTitle>
+          <CardDescription>Atualize os dados da sua empresa e contato.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleProfileSubmit} className="space-y-6">
@@ -153,12 +149,8 @@ const Account = () => {
 
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            Alterar Senha
-          </CardTitle>
-           <CardDescription>
-            Escolha uma senha forte para manter sua conta segura.
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold text-gray-800">Alterar Senha</CardTitle>
+          <CardDescription>Escolha uma senha forte para manter sua conta segura.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
@@ -170,7 +162,7 @@ const Account = () => {
                   type="password"
                   value={passwordData.password}
                   onChange={handlePasswordChange}
-                  placeholder="••••••••"
+                  placeholder="******"
                 />
               </div>
               <div className="space-y-2">
@@ -180,7 +172,7 @@ const Account = () => {
                   type="password"
                   value={passwordData.confirmPassword}
                   onChange={handlePasswordChange}
-                  placeholder="••••••••"
+                  placeholder="******"
                 />
               </div>
             </div>

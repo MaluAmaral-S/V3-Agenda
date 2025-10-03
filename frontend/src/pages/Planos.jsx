@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +17,8 @@ import {
 import { cn } from '@/lib/utils';
 import { fetchPlans, createSubscription, fetchMySubscription } from '@/services/subscriptionService';
 import { getAuthToken } from '@/services/api';
-import { Loader2, Check, CheckCircle2, Crown, Star, Zap } from 'lucide-react';
+import { IS_MERCADO_PAGO_SANDBOX, MERCADO_PAGO_MODE } from '@/utils/constants';
+import { Loader2, Check, CheckCircle2, Crown, Star, Zap, AlertTriangle } from 'lucide-react';
 
 const ICONS = {
   zap: Zap,
@@ -31,16 +33,20 @@ const PLAN_UI_DATA = {
     key: 'bronze',
     name: 'Bronze',
     title: 'Plano Bronze',
-    description: 'Recursos essenciais para começar a usar o AgendaPro.',
+    description: 'Recursos essenciais para comecar a usar o AgendaPro.',
     priceLabel: 'R$ 39,90',
+    price: 39.9,
+    currency: 'BRL',
+    frequency: 1,
+    frequencyType: 'months',
     icon: 'zap',
     badge: null,
     gradientClass:
       'bg-[radial-gradient(circle_at_20%_20%,rgba(255,217,182,0.85),rgba(136,84,24,0.95)_45%,rgba(58,33,10,0.98))]',
     featureTemplate: [
-      'Até {{limit}} agendamentos mensais',
+      'Ate {{limit}} agendamentos mensais',
       '1 agenda de profissional',
-      'Confirmações por e-mail',
+      'Confirmacoes por e-mail',
     ],
     ctaLabel: 'Assinar Bronze',
     defaultLimit: 20,
@@ -49,16 +55,20 @@ const PLAN_UI_DATA = {
     key: 'silver',
     name: 'Prata',
     title: 'Plano Prata',
-    description: 'O equilíbrio ideal entre capacidade e autonomia.',
+    description: 'O equilibrio ideal entre capacidade e autonomia.',
     priceLabel: 'R$ 79,90',
+    price: 79.9,
+    currency: 'BRL',
+    frequency: 1,
+    frequencyType: 'months',
     icon: 'star',
     badge: 'Mais escolhido',
     gradientClass:
       'bg-[radial-gradient(circle_at_20%_20%,rgba(245,245,247,0.9),rgba(168,174,186,0.95)_45%,rgba(82,88,99,0.98))]',
     featureTemplate: [
-      'Até {{limit}} agendamentos mensais',
-      'Até 5 agendas de profissionais',
-      'Suporte prioritário em horário comercial',
+      'Ate {{limit}} agendamentos mensais',
+      'Ate 5 agendas de profissionais',
+      'Suporte prioritario em horrio comercial',
     ],
     ctaLabel: 'Assinar Prata',
     defaultLimit: 60,
@@ -69,13 +79,18 @@ const PLAN_UI_DATA = {
     title: 'Plano Ouro',
     description: 'Para equipes que precisam operar sem limites.',
     priceLabel: 'Fale com o time',
+    price: null,
+    currency: 'BRL',
+    frequency: 1,
+    frequencyType: 'months',
+    requiresContact: true,
     icon: 'crown',
-    badge: 'Experiência premium',
+    badge: 'Experiencia premium',
     gradientClass:
       'bg-[radial-gradient(circle_at_20%_20%,rgba(252,244,195,0.9),rgba(214,175,38,0.95)_45%,rgba(104,78,23,0.98))]',
     featureTemplate: [
-      'Até {{limit}} agendamentos mensais',
-      'Usuários ilimitados',
+      'Ate {{limit}} agendamentos mensais',
+      'Usuarios ilimitados',
       'Suporte dedicado com SLA customizado',
     ],
     ctaLabel: 'Solicitar contato',
@@ -91,9 +106,9 @@ const buildFeatures = (planKey, limit) => {
 
 const formatLimitLabel = (limit) => {
   if (!limit || limit <= 0) {
-    return 'Agendamentos ilimitados por mês';
+    return 'Agendamentos ilimitados por mes';
   }
-  return `${limit.toLocaleString('pt-BR')} agendamentos por mês`;
+  return `${limit.toLocaleString('pt-BR')} agendamentos por ms`;
 };
 
 const composePlanList = (plansMap = new Map()) =>
@@ -119,8 +134,11 @@ const Planos = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [legacySubscription, setLegacySubscription] = useState(false);
+  const [subscriptionPending, setSubscriptionPending] = useState(false);
   const [pendingPlan, setPendingPlan] = useState(null);
   const [isApplying, setIsApplying] = useState(false);
+  const isSandboxEnv = IS_MERCADO_PAGO_SANDBOX;
 
   useEffect(() => {
     let mounted = true;
@@ -154,16 +172,19 @@ const Planos = () => {
 
         if (isSubscriptionPayload) {
           const subscriptionResponse = subscriptionResponseRaw;
-          if (subscriptionResponse.hasActive) {
+          const hasActive = Boolean(subscriptionResponse?.hasActive);
+          setLegacySubscription(Boolean(subscriptionResponse?.legacySubscription));
+          setSubscriptionPending(Boolean(subscriptionResponse?.pending));
+          if (hasActive) {
             setCurrentPlanKey(subscriptionResponse.plan?.key ?? null);
-          } else if (subscriptionResponse?.plan?.key) {
-            setCurrentPlanKey(subscriptionResponse.plan.key);
+          } else {
+            setCurrentPlanKey(null);
           }
         }
       } catch (err) {
         if (!mounted) return;
         setPlanData(composePlanList());
-        setError(err.message || 'Não foi possível carregar os planos.');
+        setError(err.message || 'No foi possvel carregar os planos.');
       } finally {
         if (mounted) {
           setLoading(false);
@@ -190,31 +211,64 @@ const Planos = () => {
   const handleSelectPlan = (plan) => {
     if (!plan) return;
     if (plan.key === currentPlanKey) {
-      toast.info('Este já é o seu plano atual.');
+      toast.info('Este ja e o seu plano atual.');
+      return;
+    }
+    if (plan.requiresContact) {
+      toast.info('Fale com o time comercial para contratar este plano.');
       return;
     }
     setPendingPlan(plan);
     setDialogOpen(true);
   };
 
-  const handleConfirmPlan = async () => {
-    if (!pendingPlan) return;
-    setIsApplying(true);
-    try {
-      await createSubscription(pendingPlan.key);
-      toast.success('Assinatura confirmada (simulação).', {
-        description: 'Confira os detalhes na aba Minha assinatura.',
-      });
-      setCurrentPlanKey(pendingPlan.key);
-      setDialogOpen(false);
-      setPendingPlan(null);
-      navigate('/painel?tab=minha-assinatura');
-    } catch (err) {
-      toast.error(err.message || 'Não foi possível confirmar a assinatura.');
-    } finally {
-      setIsApplying(false);
+  
+const handleConfirmPlan = async () => {
+  if (!pendingPlan) return;
+  setIsApplying(true);
+  try {
+    if (pendingPlan.requiresContact) {
+      toast.info('Fale com o time comercial para contratar este plano.');
+      return;
     }
-  };
+
+    const requestPayload = {
+      planKey: pendingPlan.key,
+      reason: pendingPlan.title || pendingPlan.name,
+    };
+
+    if (typeof pendingPlan.price === 'number' && pendingPlan.price > 0) {
+      requestPayload.amount = pendingPlan.price;
+      requestPayload.price = pendingPlan.price;
+      requestPayload.currency = pendingPlan.currency || 'BRL';
+      requestPayload.frequency = pendingPlan.frequency ?? 1;
+      requestPayload.frequencyType = pendingPlan.frequencyType || 'months';
+    }
+
+    const response = await createSubscription(requestPayload);
+    const checkoutUrl = response?.checkoutUrl;
+    const responseMode = (response?.mercadoPagoMode || MERCADO_PAGO_MODE || 'production').toLowerCase();
+    const sandboxCheckout = responseMode !== 'production';
+    const toastDescription = checkoutUrl
+      ? sandboxCheckout
+        ? 'Vamos redirecionar voce para o checkout de teste do Mercado Pago.'
+        : 'Vamos redirecionar voce para finalizar o pagamento no Mercado Pago.'
+      : 'Plano atualizado. Confira os detalhes na aba Minha assinatura.';
+    toast.success('Assinatura iniciada.', { description: toastDescription });
+    setCurrentPlanKey(pendingPlan.key);
+    setDialogOpen(false);
+    setPendingPlan(null);
+    if (checkoutUrl) {
+      window.location.href = checkoutUrl;
+      return;
+    }
+    navigate('/painel?tab=minha-assinatura');
+  } catch (err) {
+    toast.error(err.message || 'No foi possvel iniciar a assinatura.');
+  } finally {
+    setIsApplying(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f4f0ff] via-white to-[#eef2ff]">
@@ -222,14 +276,14 @@ const Planos = () => {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-[0.4em] text-purple-600">
-              Planos pensados para você
+              Planos pensados para voc
             </p>
             <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
-              Assinaturas que crescem junto com o seu negócio
+              Assinaturas que crescem junto com o seu negcio
             </h1>
             <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
-              Compare os benefícios de cada plano e escolha a opção ideal para atender seus clientes com mais eficiência.
-              Esta é uma simulação, sem cobrança real, e o ciclo dura 30 dias a partir da confirmação.
+              Compare os beneficios de cada plano e escolha a opcao ideal para atender seus clientes com mais eficiencia.
+              A cobrana  processada com segurana via Mercado Pago e o ciclo dura 30 dias a partir da confirmao.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:items-end">
@@ -248,6 +302,36 @@ const Planos = () => {
             </Button>
           </div>
         </div>
+
+        {isSandboxEnv && (
+          <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Mercado Pago em desenvolvimento</AlertTitle>
+            <AlertDescription>
+              Use os dados de teste fornecidos pelo Mercado Pago. Nenhuma cobranca real sera realizada.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {legacySubscription && (
+          <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Atualize sua assinatura</AlertTitle>
+            <AlertDescription>
+              Sua assinatura atual nao foi migrada para o Mercado Pago. Escolha um dos planos abaixo para iniciar um novo checkout seguro.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {subscriptionPending && !legacySubscription && (
+          <Alert className="border-slate-200 bg-slate-50 text-slate-700">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Pagamento pendente</AlertTitle>
+            <AlertDescription>
+              Conclua o pagamento do checkout do Mercado Pago para liberar o plano. Enquanto isso, voce ainda pode escolher outra oferta abaixo.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
@@ -344,7 +428,7 @@ const Planos = () => {
             <AlertDialogTitle>Confirmar assinatura</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-600">
               {pendingPlan
-                ? `Deseja ativar o plano ${pendingPlan.name}? Você poderá aproveitar os recursos assim que confirmar.`
+                ? `Deseja ativar o plano ${pendingPlan.name}? Voce poder aproveitar os recursos assim que confirmar.`
                 : 'Selecione um plano para continuar.'}
             </AlertDialogDescription>
           </AlertDialogHeader>

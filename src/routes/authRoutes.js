@@ -7,6 +7,7 @@ const authController = require('../controllers/authController');
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/logout', authController.logout);
+router.post('/logout', authController.logout);
 
 // Rotas de perfil (protegida)
 router.get('/profile', authController.protect, authController.getProfile);

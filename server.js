@@ -12,6 +12,8 @@ const publicRoutes = require('./src/routes/publicRoutes');
 const dashboardRoutes = require('./src/routes/dashboardRoutes');
 const planRoutes = require('./src/routes/planRoutes');
 const subscriptionRoutes = require('./src/routes/subscriptionRoutes');
+const mercadoPagoRoutes = require('./src/routes/mercadoPagoRoutes');
+const userSubscriptionManagementRoutes = require('./src/routes/userSubscriptionManagementRoutes');
 const seedPlans = require('./src/scripts/seedPlans');
 const { protect } = require('./src/controllers/authController'); // Importa a função de proteção
 
@@ -59,6 +61,14 @@ app.use('/api/servicos', serviceRoutes);
 app.use('/api/business-hours', businessHoursRoutes);
 app.use('/api', planRoutes);
 app.use('/api', subscriptionRoutes);
+// Routes for users to manage their own subscriptions: cancel renewal and
+// update payment method. These endpoints require authentication and are
+// separate from the Mercado Pago webhook or admin plan creation routes.
+app.use('/api', userSubscriptionManagementRoutes);
+// Rotas Mercado Pago.  Utilizamos um prefixo dedicado (/api/mercadopago)
+// para deixar claro que estas rotas lidam com integrações com a API de
+// assinaturas do Mercado Pago.
+app.use('/api/mercadopago', mercadoPagoRoutes);
 app.use('/api', appointmentRoutes);
 app.use('/api', publicRoutes);
 app.use('/api', require('./src/routes/businessRoutes'));
