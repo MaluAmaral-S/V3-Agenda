@@ -1,17 +1,21 @@
 const { Plan } = require('../models');
-const { getPlanLimit } = require('../config/planConfig');
 
 const listPlans = async (req, res) => {
   try {
     const plans = await Plan.findAll({
       where: { isActive: true },
       order: [['id', 'ASC']],
+      attributes: ['key', 'name', 'price', 'frequency', 'frequencyType', 'monthlyLimit'],
     });
 
+    // The payload now directly maps the relevant fields from the model.
     const payload = plans.map((plan) => ({
       key: plan.key,
       name: plan.name,
-      monthlyLimit: getPlanLimit(plan.key, plan.monthlyLimit),
+      price: plan.price ? Number(plan.price) : null,
+      frequency: plan.frequency,
+      frequencyType: plan.frequencyType,
+      monthlyLimit: plan.monthlyLimit,
     }));
 
     return res.json(payload);

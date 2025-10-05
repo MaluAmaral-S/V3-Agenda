@@ -1,19 +1,9 @@
-
 const { Op } = require('sequelize');
 const { Subscription, Plan, Appointment } = require('../models');
-const {
-  getPlanLimit,
-  getSubscriptionDurationDays,
-} = require('../config/planConfig');
+const { getPlanLimit } = require('../config/planConfig');
 const callMercadoPagoAPI = require('../lib/mercadoPagoApi');
 
 const COUNT_STATUSES = ['pending', 'confirmed', 'rescheduled'];
-
-const addDays = (date, days) => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-};
 
 const diffInDays = (end, start) => {
   const oneDayMs = 24 * 60 * 60 * 1000;
@@ -59,7 +49,8 @@ const syncSubscriptionWithMercadoPago = async (subscription) => {
     return subscription;
   }
   try {
-    const remote = await callMercadoPagoAPI('GET', `/v1/subscriptions/${subscription.mpSubscriptionId}`);
+    // Corrected endpoint to use /preapproval/ instead of /v1/subscriptions/
+    const remote = await callMercadoPagoAPI('GET', `/preapproval/${subscription.mpSubscriptionId}`);
     if (!remote) {
       return subscription;
     }
@@ -68,11 +59,11 @@ const syncSubscriptionWithMercadoPago = async (subscription) => {
     if (mappedStatus && mappedStatus !== subscription.status) {
       updates.status = mappedStatus;
     }
-    const periodStart = parseDate(remote.current_period_start_date || remote.date_created);
+    const periodStart = parseDate(remote.date_created);
     if (periodStart && (!subscription.startsAt || subscription.startsAt.getTime() !== periodStart.getTime())) {
       updates.startsAt = periodStart;
     }
-    const periodEnd = parseDate(remote.current_period_end_date || remote.next_payment_date);
+    const periodEnd = parseDate(remote.next_payment_date);
     if (periodEnd && (!subscription.expiresAt || subscription.expiresAt.getTime() !== periodEnd.getTime())) {
       updates.expiresAt = periodEnd;
     }
@@ -88,66 +79,6 @@ const syncSubscriptionWithMercadoPago = async (subscription) => {
     }
   }
   return subscription;
-};
-
-const createSubscription = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'Nao autenticado.' });
-    }
-
-    const { planKey } = req.body;
-
-    if (!planKey || typeof planKey !== 'string') {
-      return res.status(422).json({ error: 'Informe o plano desejado.' });
-    }
-
-    const normalizedKey = planKey.toLowerCase();
-
-    const plan = await Plan.findOne({ where: { key: normalizedKey, isActive: true } });
-
-    if (!plan) {
-      return res.status(404).json({ error: 'Plano nao encontrado.' });
-    }
-
-    await Subscription.update(
-      { status: 'canceled', expiresAt: new Date() },
-      { where: { userId, status: 'active' } }
-    );
-
-    const now = new Date();
-    const duration = getSubscriptionDurationDays();
-    const expiresAt = addDays(now, duration);
-
-    const subscription = await Subscription.create({
-      userId,
-      planId: plan.id,
-      startsAt: now,
-      expiresAt,
-      status: 'active',
-      planName: plan.name,
-    });
-
-    return res.status(201).json({
-      message: 'Assinatura confirmada (simulacao).',
-      subscription: {
-        id: subscription.id,
-        startsAt: subscription.startsAt,
-        expiresAt: subscription.expiresAt,
-        status: subscription.status,
-      },
-      plan: {
-        key: plan.key,
-        name: plan.name,
-        monthlyLimit: getPlanLimit(plan.key, plan.monthlyLimit),
-      },
-    });
-  } catch (error) {
-    console.error('Erro ao criar assinatura:', error);
-    return res.status(500).json({ error: 'Erro ao criar assinatura.' });
-  }
 };
 
 const getMySubscription = async (req, res) => {
@@ -254,6 +185,5 @@ const getMySubscription = async (req, res) => {
 };
 
 module.exports = {
-  createSubscription,
   getMySubscription,
 };
