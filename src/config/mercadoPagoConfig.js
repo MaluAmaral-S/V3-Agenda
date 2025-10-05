@@ -1,78 +1,57 @@
-const DEFAULT_MODE = 'production';
-const DEFAULT_HOST = 'api.mercadopago.com';
+// src/config/mercadoPagoConfig.js
 
-function normalizeMode(rawMode) {
-  if (!rawMode) {
-    return DEFAULT_MODE;
-  }
-  const value = String(rawMode).trim().toLowerCase();
-  if (['development', 'dev', 'sandbox', 'test'].includes(value)) {
-    return 'development';
-  }
-  if (['production', 'prod', 'live'].includes(value)) {
+/**
+ * Determines the Mercado Pago API mode based on the environment variable.
+ * Defaults to 'development' if the variable is not set or is invalid.
+ *
+ * @returns {'development' | 'production'} The current mode for Mercado Pago API calls.
+ */
+function getMercadoPagoMode() {
+  const mode = process.env.MERCADO_PAGO_MODE?.toLowerCase();
+  if (mode === 'production') {
     return 'production';
   }
-  return DEFAULT_MODE;
+  return 'development';
 }
 
-function getMercadoPagoMode() {
-  return normalizeMode(process.env.MERCADO_PAGO_MODE);
-}
-
+/**
+ * Checks if the current Mercado Pago mode is set to development (sandbox).
+ *
+ * @returns {boolean} True if the mode is 'development', false otherwise.
+ */
 function isMercadoPagoDevelopmentMode() {
-  return getMercadoPagoMode() !== 'production';
+  return getMercadoPagoMode() === 'development';
 }
 
-function getMercadoPagoApiHost() {
-  const envHost = process.env.MERCADO_PAGO_API_HOST;
-  if (envHost && typeof envHost === 'string' && envHost.trim().length > 0) {
-    return envHost.trim();
-  }
-  return DEFAULT_HOST;
-}
-
-function pickFirstString(values) {
-  if (!Array.isArray(values)) {
+/**
+ * Selects the appropriate checkout URL from a Mercado Pago API response.
+ * It prioritizes the sandbox URL if available and in development mode.
+ * It checks multiple common fields for the URL for resilience.
+ *
+ * @param {object | null} mpResponse - The response object from Mercado Pago API.
+ * @returns {string | null} The selected checkout URL or null if not found.
+ */
+function selectMercadoPagoCheckoutUrl(mpResponse) {
+  if (!mpResponse) {
     return null;
   }
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-  return null;
-}
 
-function selectMercadoPagoCheckoutUrl(response) {
-  if (!response || typeof response !== 'object') {
-    return null;
+  const isSandbox = isMercadoPagoDevelopmentMode();
+
+  // Possible fields for the checkout URL in different MP API responses
+  const sandboxUrl = mpResponse.sandbox_init_point || mpResponse.sandbox_url || mpResponse.test_url;
+  const productionUrl = mpResponse.init_point || mpResponse.url || mpResponse.checkout_url;
+
+  if (isSandbox && sandboxUrl) {
+    return sandboxUrl;
   }
-  const pointOfInteraction = response.point_of_interaction || {};
-  const transactionData = pointOfInteraction.transaction_data || {};
-  const productionCandidates = [
-    response.init_point,
-    response.init_url,
-    response.checkout_url,
-    transactionData.ticket_url,
-    transactionData.checkout_url,
-  ];
-  const sandboxCandidates = [
-    response.sandbox_init_point,
-    response.sandbox_init_url,
-    transactionData.sandbox_init_point,
-    transactionData.sandbox_checkout_url,
-  ];
-  const sandboxUrl = pickFirstString(sandboxCandidates);
-  const productionUrl = pickFirstString(productionCandidates);
-  if (isMercadoPagoDevelopmentMode()) {
-    return sandboxUrl || productionUrl || null;
-  }
+
+  // Fallback to production URL if not in sandbox or if sandbox URL is missing
   return productionUrl || sandboxUrl || null;
 }
 
 module.exports = {
   getMercadoPagoMode,
   isMercadoPagoDevelopmentMode,
-  getMercadoPagoApiHost,
   selectMercadoPagoCheckoutUrl,
 };

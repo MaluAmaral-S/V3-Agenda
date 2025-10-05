@@ -37,6 +37,18 @@ const Plan = sequelize.define('Plan', {
     allowNull: true,
     unique: true,
   },
+  price: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+  },
+  frequency: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  frequencyType: {
+    type: DataTypes.STRING, // 'days' or 'months'
+    allowNull: true,
+  },
 }, {
   indexes: [
     { unique: true, fields: ['key'] },
